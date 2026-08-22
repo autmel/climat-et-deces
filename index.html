@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Décès & Températures — France 1970-2026</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌡️</text></svg>">
+<script src="data.js"></script>
+<script src="vendor/vue.global.prod.js"></script>
+<script src="vendor/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1420; --card:#171e2e; --card2:#1e2740; --border:#2a3552;
+    --text:#e8ecf5; --muted:#8a94ab; --accent:#4f9cf9;
+    --temp:#f6a53c; --temp26:#ff6b5e; --clim:#7fb0ff;
+    --dec:#b48bf0; --dec26:#4ade80; --grid:#22304e;
+  }
+  [v-cloak]{display:none}
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,Arial,sans-serif; padding:24px 20px 60px}
+  header{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:20px}
+  header h1{font-size:20px; font-weight:600}
+  header .sub{color:var(--muted); font-size:12px; margin-top:2px}
+  .logo{width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg,var(--accent),var(--dec)); display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff}
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px}
+  .stat{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px}
+  .stat .k{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.4px}
+  .stat .v{font-size:22px; font-weight:700; margin-top:6px}
+  .stat .v small{font-size:12px; color:var(--muted); font-weight:400}
+  .panel{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:20px}
+  .panel h2{font-size:15px; margin-bottom:4px}
+  .panel .desc{color:var(--muted); font-size:12px; margin-bottom:14px}
+  .chartbox{position:relative; width:100%}
+  canvas{max-height:380px}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px}
+  .chip{background:var(--card2); border:1px solid var(--border); color:var(--muted); border-radius:20px; padding:4px 12px; font-size:12px; cursor:pointer; user-select:none}
+  .chip.on{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .chip.warm.on{background:var(--temp26); border-color:var(--temp26)}
+  .toggle{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); cursor:pointer; margin-bottom:12px}
+  .toggle input{accent-color:var(--accent); width:16px; height:16px}
+  .legend-row{display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-bottom:10px}
+  .legend-row span b{font-weight:600}
+  .note{color:var(--muted); font-size:11px; margin-top:8px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:20px}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app" v-cloak>
+  <header>
+    <div class="logo">🌡</div>
+    <div>
+      <h1>Décès & Températures en France</h1>
+      <div class="sub">Indicateur Thermique National (Infoclimat) × données décès INSEE — 1970-2026</div>
+    </div>
+  </header>
+
+  <!-- statistiques -->
+  <div class="stats">
+    <div class="stat"><div class="k">Temp. moy. 1970-2025</div><div class="v">{{ fmt1(tempMoyenneGlobale) }}<small> °C</small></div></div>
+    <div class="stat"><div class="k">Temp. moy. 2026</div><div class="v">{{ fmt1(tempMoyenne2026) }}<small> °C</small></div></div>
+    <div class="stat"><div class="k">Année la + chaude</div><div class="v">{{ anneePlusChaude }}</div></div>
+    <div class="stat"><div class="k">Jour le + chaud (hist.)</div><div class="v">{{ jourPlusChaud.date }}</div><div class="k" style="margin-top:4px">{{ fmt1(jourPlusChaud.t) }} °C</div></div>
+    <div class="stat"><div class="k">Décès 2026 cumulés</div><div class="v">{{ fmt0(deces2026Cumul) }}</div></div>
+    <div class="stat"><div class="k">Moy. décès/jour (ind.)</div><div class="v">{{ fmt0(moyenneDecesIndicee) }}</div></div>
+  </div>
+
+  <!-- 1. température -->
+  <div class="panel">
+    <h2>Température moyenne quotidienne en France</h2>
+    <div class="desc">Sélectionnez une ou plusieurs années à superposer à la climatologie (moyenne du même jour, 1970-2025).</div>
+    <div class="chips">
+      <span v-for="y in anneesDispo" :key="y" class="chip" :class="{on: anneeActive(y)}" @click="toggleAnnee(y)">{{ y }}</span>
+    </div>
+    <div class="chartbox"><canvas ref="chartTemp"></canvas></div>
+    <div class="note">Climatologie = moyenne 1970-2025 de chaque jour de l'année. Années bissextiles : 29/02 inclus (jours sans données ignorés).</div>
+  </div>
+
+  <!-- 2. corrélation -->
+  <div class="panel">
+    <h2>Température × Décès</h2>
+    <div class="desc">Comparaison jour par jour (axe gauche : température, axe droit : décès). Sélectionnez les années de température et la période.</div>
+    <div class="chips">
+      <span v-for="y in anneesDispo" :key="y" class="chip" :class="{on: anneeCorrActive(y)}" @click="toggleAnneeCorr(y)">{{ y }}</span>
+    </div>
+    <div class="chips">
+      <span class="chip" :class="{on: corrPeriode==='annee'}" @click="corrPeriode='annee'">Année complète</span>
+      <span class="chip" :class="{on: corrPeriode==='ete'}" @click="corrPeriode='ete'">Été (15/05–15/09)</span>
+    </div>
+    <div class="chartbox"><canvas ref="chartCorr"></canvas></div>
+    <div class="note">Décès : moyenne indexée 1970-2025 + 2026 (uniquement ces deux séries disponibles). Température : années sélectionnées. Le tracé 2026 s'arrête à la dernière date disponible.</div>
+  </div>
+
+  <div class="note" style="text-align:center; margin-top:8px">
+    Données : Infoclimat, 1970-2026 · Fichier des personnes décédées (INSEE)
+  </div>
+</div>
+
+<script>
+const { createApp, computed, ref, onMounted, watch } = Vue;
+const DATA = window.DATA;
+
+function dateFromIndex(start, i){
+  const [y,m,d] = [start.slice(0,4), start.slice(4,6), start.slice(6,8)].map(Number);
+  const dt = new Date(Date.UTC(y, m-1, d));
+  dt.setUTCDate(dt.getUTCDate() + i);
+  return dt;
+}
+function mmddOf(dt){
+  return (String(dt.getUTCMonth()+1).padStart(2,'0')) + String(dt.getUTCDate()).padStart(2,'0');
+}
+
+const temp = DATA.temp;
+const N = temp.tmoy.length;
+// tableaux indexés par jour MMDD
+const mmddList = DATA.deces.jour; // 366 jours (0101..1231)
+const mmddIdx = {};
+mmddList.forEach((m,i)=>mmddIdx[m]=i);
+
+// ---- température par année ----
+const tempByYear = {};   // y -> { mmdd: t }
+const tempMMDD = new Array(366).fill(null).map(()=>[]); // clim par MMDD (1970-2025)
+for(let i=0;i<N;i++){
+  const y = dateFromIndex(temp.start,i).getUTCFullYear();
+  const mmdd = mmddOf(dateFromIndex(temp.start,i));
+  const t = temp.tmoy[i];
+  if(!tempByYear[y]) tempByYear[y] = {};
+  tempByYear[y][mmdd] = t;
+  if(y <= 2025) tempMMDD[mmddIdx[mmdd]].push(t);
+}
+const tempClim = tempMMDD.map(a => a.length ? a.reduce((s,x)=>s+x,0)/a.length : null);
+
+const anneesDispo = Object.keys(tempByYear).map(Number).sort((a,b)=>a-b);
+const anneePlusChaude = (()=>{
+  let best=null;
+  for(const y of anneesDispo){
+    const v = Object.values(tempByYear[y]);
+    const m = v.reduce((s,x)=>s+x,0)/v.length;
+    if(!best || m>best.m) best={m,y};
+  }
+  return best ? best.y : null;
+})();
+
+// ---- décès ----
+const deces = DATA.deces;
+const deces2026Cumul = deces.deces_2026.reduce((s,x)=>s+x,0);
+const moyenneDecesIndicee = deces.moyenne_indexee.reduce((s,x)=>s+x,0)/deces.moyenne_indexee.length;
+
+// jour le plus chaud historique
+let jpc = {date:'-', t:null};
+for(const y of anneesDispo){
+  for(const [mmdd,t] of Object.entries(tempByYear[y])){
+    if(jpc.t===null || t>jpc.t) jpc={date: mmdd.slice(2,4)+'/'+mmdd.slice(0,2)+'/'+y, t};
+  }
+}
+
+const app = createApp({
+  setup(){
+    const chartTemp = ref(null), chartCorr = ref(null);
+    const anneesSel = ref([2026]);
+    const anneesCorr = ref([2026]);
+    const corrPeriode = ref('annee');
+    const charts = {};
+
+    // jours MMDD de la période "été" (15/05 -> 15/09)
+    const eteMmdd = mmddList.filter(m => m >= '0515' && m <= '0909');
+
+    const fmt1 = v => v===null||v===undefined ? '–' : Number(v).toFixed(1);
+    const fmt0 = v => v===null||v===undefined ? '–' : Number(v).toLocaleString('fr-FR');
+
+    const tempMoyenneGlobale = computed(()=>{
+      const a = temp.tmoy.filter((_,i)=>dateFromIndex(temp.start,i).getUTCFullYear()<=2025);
+      return a.reduce((s,x)=>s+x,0)/a.length;
+    });
+    const tempMoyenne2026 = computed(()=>{
+      const a = tempByYear['2026'];
+      if(!a) return null;
+      const v = Object.values(a);
+      return v.length ? v.reduce((s,x)=>s+x,0)/v.length : null;
+    });
+
+    const anneeActive = y => anneesSel.value.includes(y);
+    const toggleAnnee = y => {
+      const i = anneesSel.value.indexOf(y);
+      if(i>=0) anneesSel.value.splice(i,1); else anneesSel.value.push(y);
+    };
+    const anneeCorrActive = y => anneesCorr.value.includes(y);
+    const toggleAnneeCorr = y => {
+      const i = anneesCorr.value.indexOf(y);
+      if(i>=0) anneesCorr.value.splice(i,1); else anneesCorr.value.push(y);
+    };
+
+    // série par année alignée sur les 366 jours MMDD
+    function serieAnnee(y){
+      const m = tempByYear[y];
+      return mmddList.map(mmd => m[mmd] ?? null);
+    }
+
+    function makeChart(canvas, cfg){
+      if(charts[canvas]) charts[canvas].destroy();
+      charts[canvas] = new Chart(canvas.getContext('2d'), cfg);
+    }
+
+    // couleurs par année (palette fixe)
+    const palette = ['#ff6b5e','#4ade80','#4f9cf9','#f6a53c','#b48bf0','#22d3ee','#fb7185','#a3e635','#f97316','#e879f9','#34d399','#60a5fa','#facc15','#c084fc','#2dd4bf'];
+    const anneeColor = y => {
+      const i = anneesDispo.indexOf(Number(y));
+      return palette[i % palette.length];
+    };
+
+    const tick = { color:'#22304e' };
+    const grid = { color:'#22304e', drawOnChartArea:true };
+    const baseOpts = {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{ labels:{ color:'#8a94ab', boxWidth:12, font:{size:11} } },
+                tooltip:{ backgroundColor:'#0f1420', borderColor:'#2a3552', borderWidth:1,
+                          titleCallback: (items) => { const l=items[0].label; return l.slice(2)+'/'+l.slice(0,2); },
+                          callbacks:{ label: c => ' '+c.dataset.label+': '+ (c.parsed.y===null?'–':Number(c.parsed.y).toFixed(1)) } } },
+      scales:{
+        x:{ ticks:{ color:'#8a94ab', font:{size:9}, maxTicksLimit:26, callback(v){ const l=this.getLabelForValue(v); return l.slice(2)+'/'+l.slice(0,2); } },
+            grid:{display:false} },
+        y:{ ticks: tick, grid }
+      }
+    };
+
+    function drawTemp(){
+      const datasets = [{ label:'Climatologie 1970-2025', data:tempClim, borderColor:'#7fb0ff', backgroundColor:'#7fb0ff22', borderWidth:2, pointRadius:0, fill:false }];
+      anneesSel.value.forEach(y=>{
+        datasets.push({ label:'Année '+y, data:serieAnnee(y), borderColor:anneeColor(y), borderWidth:1.6, pointRadius:0, spanGaps:false });
+      });
+      makeChart(chartTemp.value, { type:'line', data:{ labels:mmddList, datasets },
+        options:{ ...baseOpts, elements:{ line:{tension:.15} } } });
+    }
+
+    function drawCorr(){
+      const lab = corrPeriode.value === 'ete' ? eteMmdd : mmddList;
+      const idx = lab.map(m => mmddIdx[m]);
+      const pick = arr => idx.map(i => arr[i]);
+      const datasets = [];
+      // climatologie température (référence)
+      datasets.push({ label:'Clim. temp. 1970-2025', data:pick(tempClim), borderColor:'#7fb0ff', borderWidth:2, pointRadius:0, fill:false, tension:.15, yAxisID:'y', spanGaps:true });
+      // années sélectionnées (température)
+      anneesCorr.value.forEach(y=>{
+        datasets.push({ label:'Temp. '+y, data:pick(serieAnnee(y)), borderColor:anneeColor(y), borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y', spanGaps:false });
+      });
+      // décès : moyenne indexée + 2026
+      datasets.push({ label:'Décès moy. indexée', data:pick(deces.moyenne_indexee), borderColor:'#b48bf0', borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y1', spanGaps:true });
+      datasets.push({ label:'Décès 2026', data:pick(deces.deces_2026), borderColor:'#4ade80', borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y1', spanGaps:false });
+      makeChart(chartCorr.value, { type:'line',
+        data:{ labels:lab, datasets },
+        options:{ ...baseOpts,
+          scales:{ x:baseOpts.scales.x,
+            y:{ position:'left', ticks:{ color:'#8a94ab' }, grid, title:{display:true, text:'°C', color:'#8a94ab', font:{size:10}} },
+            y1:{ position:'right', ticks:{ color:'#8a94ab' }, grid:{drawOnChartArea:false}, title:{display:true, text:'décès/jour', color:'#8a94ab', font:{size:10}} } } }
+      });
+    }
+
+    onMounted(()=>{ drawTemp(); drawCorr(); });
+    watch(anneesSel, drawTemp, {deep:true});
+    watch([anneesCorr, corrPeriode], drawCorr, {deep:true});
+
+    return { chartTemp, chartCorr, anneesDispo, anneesSel, anneesCorr, corrPeriode,
+             anneeActive, toggleAnnee, anneeCorrActive, toggleAnneeCorr, fmt1, fmt0,
+             tempMoyenneGlobale, tempMoyenne2026, anneePlusChaude, jourPlusChaud:jpc,
+             deces2026Cumul, moyenneDecesIndicee };
+  }
+});
+app.mount('#app');
+</script>
+</body>
+</html>
