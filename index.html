@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Décès & Températures — France 1970-2026</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌡️</text></svg>">
-<script src="data.js"></script>
-<script src="vendor/vue.global.prod.js"></script>
-<script src="vendor/chart.umd.min.js"></script>
+<script src="data.js?v=20260823b"></script>
+<script src="vendor/vue.global.prod.js?v=20260823b"></script>
+<script src="vendor/chart.umd.min.js?v=20260823b"></script>
 <style>
   :root{
     --bg:#0f1420; --card:#171e2e; --card2:#1e2740; --border:#2a3552;
@@ -79,7 +79,11 @@
   <!-- 2. corrélation -->
   <div class="panel">
     <h2>Température × Décès</h2>
-    <div class="desc">Comparaison jour par jour (axe gauche : température, axe droit : décès). Sélectionnez les années de température et la période.</div>
+    <div class="desc">Comparaison jour par jour (axe gauche : température, axe droit : décès). Sélectionnez les années de température, la période et le périmètre des décès.</div>
+    <div class="chips">
+      <span class="chip" :class="{on: decesSrc==='fr'}" @click="setDecesSrc('fr')">France</span>
+      <span class="chip" :class="{on: decesSrc==='mel'}" @click="setDecesSrc('mel')">MEL (Lille)</span>
+    </div>
     <div class="chips">
       <span v-for="y in anneesDispo" :key="y" class="chip" :class="{on: anneeCorrActive(y)}" @click="toggleAnneeCorr(y)">{{ y }}</span>
     </div>
@@ -88,7 +92,7 @@
       <span class="chip" :class="{on: corrPeriode==='ete'}" @click="corrPeriode='ete'">Été (15/05–15/09)</span>
     </div>
     <div class="chartbox"><canvas ref="chartCorr"></canvas></div>
-    <div class="note">Décès : moyenne indexée 1970-2025 + 2026 (uniquement ces deux séries disponibles). Température : années sélectionnées. Le tracé 2026 s'arrête à la dernière date disponible.</div>
+    <div class="note">Décès : moyenne indexée 1970-2025 + 2026 (France ou MEL selon sélection). Température : années sélectionnées. Le tracé 2026 s'arrête à la dernière date disponible.</div>
   </div>
 
   <div class="note" style="text-align:center; margin-top:8px">
@@ -112,8 +116,10 @@ function mmddOf(dt){
 
 const temp = DATA.temp;
 const N = temp.tmoy.length;
-// tableaux indexés par jour MMDD
-const mmddList = DATA.deces.jour; // 366 jours (0101..1231)
+const decesFR = DATA.decesFR || DATA.deces;
+const decesMEL = DATA.decesMEL || DATA.deces;
+// jour partagé (identique FR/MEL)
+const mmddList = decesFR.jour; // 366 jours (0101..1231)
 const mmddIdx = {};
 mmddList.forEach((m,i)=>mmddIdx[m]=i);
 
@@ -141,11 +147,6 @@ const anneePlusChaude = (()=>{
   return best ? best.y : null;
 })();
 
-// ---- décès ----
-const deces = DATA.deces;
-const deces2026Cumul = deces.deces_2026.reduce((s,x)=>s+x,0);
-const moyenneDecesIndicee = deces.moyenne_indexee.reduce((s,x)=>s+x,0)/deces.moyenne_indexee.length;
-
 // jour le plus chaud historique
 let jpc = {date:'-', t:null};
 for(const y of anneesDispo){
@@ -160,7 +161,10 @@ const app = createApp({
     const anneesSel = ref([2026]);
     const anneesCorr = ref([2026]);
     const corrPeriode = ref('annee');
+    const decesSrc = ref('mel');   // 'fr' | 'mel'  — filtre décès MEL
     const charts = {};
+
+    const deces = Vue.computed(() => decesSrc.value === 'mel' ? decesMEL : decesFR);
 
     // jours MMDD de la période "été" (15/05 -> 15/09)
     const eteMmdd = mmddList.filter(m => m >= '0515' && m <= '0909');
@@ -177,6 +181,11 @@ const app = createApp({
       if(!a) return null;
       const v = Object.values(a);
       return v.length ? v.reduce((s,x)=>s+x,0)/v.length : null;
+    });
+    const deces2026Cumul = computed(() => deces.value.deces_2026.reduce((s,x)=>s+x,0));
+    const moyenneDecesIndicee = computed(() => {
+      const d = deces.value;
+      return d.moyenne_indexee.reduce((s,x)=>s+x,0)/d.moyenne_indexee.length;
     });
 
     const anneeActive = y => anneesSel.value.includes(y);
@@ -244,9 +253,9 @@ const app = createApp({
       anneesCorr.value.forEach(y=>{
         datasets.push({ label:'Temp. '+y, data:pick(serieAnnee(y)), borderColor:anneeColor(y), borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y', spanGaps:false });
       });
-      // décès : moyenne indexée + 2026
-      datasets.push({ label:'Décès moy. indexée', data:pick(deces.moyenne_indexee), borderColor:'#b48bf0', borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y1', spanGaps:true });
-      datasets.push({ label:'Décès 2026', data:pick(deces.deces_2026), borderColor:'#4ade80', borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y1', spanGaps:false });
+      // décès : moyenne indexée + 2026 (source FR / MEL)
+      datasets.push({ label:'Décès moy. indexée', data:pick(deces.value.moyenne_indexee), borderColor:'#b48bf0', borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y1', spanGaps:true });
+      datasets.push({ label:'Décès 2026', data:pick(deces.value.deces_2026), borderColor:'#4ade80', borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y1', spanGaps:false });
       makeChart(chartCorr.value, { type:'line',
         data:{ labels:lab, datasets },
         options:{ ...baseOpts,
@@ -258,10 +267,12 @@ const app = createApp({
 
     onMounted(()=>{ drawTemp(); drawCorr(); });
     watch(anneesSel, drawTemp, {deep:true});
-    watch([anneesCorr, corrPeriode], drawCorr, {deep:true});
+    watch([anneesCorr, corrPeriode, decesSrc], drawCorr, {deep:true});
 
-    return { chartTemp, chartCorr, anneesDispo, anneesSel, anneesCorr, corrPeriode,
-             anneeActive, toggleAnnee, anneeCorrActive, toggleAnneeCorr, fmt1, fmt0,
+    const setDecesSrc = s => { decesSrc.value = s; };
+
+    return { chartTemp, chartCorr, anneesDispo, anneesSel, anneesCorr, corrPeriode, decesSrc,
+             anneeActive, toggleAnnee, anneeCorrActive, toggleAnneeCorr, setDecesSrc, fmt1, fmt0,
              tempMoyenneGlobale, tempMoyenne2026, anneePlusChaude, jourPlusChaud:jpc,
              deces2026Cumul, moyenneDecesIndicee };
   }
