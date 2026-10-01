@@ -11,9 +11,11 @@
 <style>
   :root{
     --bg:#0f1420; --card:#171e2e; --card2:#1e2740; --border:#2a3552;
+    --border-strong:#7388b0; --on-accent:#0f1420;
     --text:#e8ecf5; --muted:#8a94ab; --accent:#4f9cf9;
     --temp:#f6a53c; --temp26:#ff6b5e; --clim:#7fb0ff;
-    --dec:#b48bf0; --dec26:#4ade80; --grid:#22304e;
+    --dec:#b48bf0; --dec26:#4ade80; --grid:#5a6e99; --axis:#8a94ab;
+    --ref:#6b7694;
   }
   [v-cloak]{display:none}
   *{box-sizing:border-box; margin:0; padding:0}
@@ -30,31 +32,84 @@
   .panel{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:20px}
   .panel h2{font-size:15px; margin-bottom:4px}
   .panel .desc{color:var(--muted); font-size:12px; margin-bottom:14px}
-  .chartbox{position:relative; width:100%}
+  .chartbox{position:relative; width:100%; height:380px}
   canvas{max-height:380px}
   .chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px}
-  .chip{background:var(--card2); border:1px solid var(--border); color:var(--muted); border-radius:20px; padding:4px 12px; font-size:12px; cursor:pointer; user-select:none}
-  .chip.on{background:var(--accent); color:#fff; border-color:var(--accent)}
-  .chip.warm.on{background:var(--temp26); border-color:var(--temp26)}
+  .chip{background:var(--card2); border:1px solid var(--border-strong); color:var(--muted); border-radius:20px; padding:4px 12px; font-size:12px; line-height:1.5; font-family:inherit; cursor:pointer; user-select:none}
+  .chip.on{background:var(--accent); color:var(--on-accent); border-color:var(--on-accent); font-weight:600}
+  .chip.canicule{border-color:#ff6b5e; color:#ff6b5e}
+  .chip.canicule.on{background:#ff6b5e; border-color:var(--on-accent); color:var(--on-accent)}
+  .chip.froid{border-color:#38bdf8; color:#38bdf8}
+  .chip.froid.on{background:#38bdf8; border-color:var(--on-accent); color:var(--on-accent)}
+  .legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin:-4px 0 14px}
   .toggle{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); cursor:pointer; margin-bottom:12px}
   .toggle input{accent-color:var(--accent); width:16px; height:16px}
   .legend-row{display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-bottom:10px}
   .legend-row span b{font-weight:600}
   .note{color:var(--muted); font-size:11px; margin-top:8px}
+  .note a{color:var(--accent); text-decoration:none}
+  .note a:hover{text-decoration:underline}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:20px}
   @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+
+  /* ---- accessibilité ---- */
+  .skip{position:absolute; left:-9999px; top:0; z-index:200; background:var(--accent); color:var(--on-accent); padding:10px 16px; border-radius:0 0 8px 0; font-size:14px; font-weight:600}
+  .skip:focus{left:0}
+  .vh{position:absolute!important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; border:0}
+  *:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+  .a11y-fab{position:fixed; right:18px; bottom:18px; z-index:80; width:50px; height:50px; border-radius:50%; background:var(--accent); color:var(--on-accent); border:2px solid var(--on-accent); font-size:22px; line-height:1; cursor:pointer; box-shadow:0 6px 22px rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center}
+  .a11y-panel{position:fixed; right:18px; bottom:80px; z-index:80; width:292px; max-width:calc(100vw - 36px); max-height:calc(100vh - 110px); overflow:auto; background:var(--card); border:1px solid var(--border-strong); border-radius:14px; padding:14px 16px 16px; box-shadow:0 16px 44px rgba(0,0,0,.6)}
+  .a11y-panel h2{font-size:14px; margin-bottom:4px; padding-right:28px}
+  .a11y-panel .hint{color:var(--muted); font-size:11px; margin-bottom:6px}
+  .a11y-opt{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; font-size:13px; border-top:1px solid var(--border); cursor:pointer}
+  .a11y-opt .lbl{display:flex; align-items:center; gap:8px}
+  .a11y-opt .ico{font-size:15px}
+  .switch{appearance:none; -webkit-appearance:none; position:relative; width:44px; height:24px; flex:0 0 auto; background:var(--card2); border:1px solid var(--border-strong); border-radius:20px; cursor:pointer; margin:0}
+  .switch::after{content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--muted); transition:left .15s ease, background .15s ease}
+  .switch:checked{background:var(--accent); border-color:var(--on-accent)}
+  .switch:checked::after{left:22px; background:var(--on-accent)}
+  .switch:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+  .a11y-reset{margin-top:12px; width:100%; background:var(--card2); border:1px solid var(--border-strong); color:var(--text); border-radius:8px; padding:8px; font-size:12px; font-family:inherit; cursor:pointer}
+  .a11y-close{position:absolute; top:8px; right:10px; background:none; border:0; color:var(--muted); font-size:18px; cursor:pointer; line-height:1; padding:4px 6px}
+  .a11y-close:hover{color:var(--text)}
+  html.a11y-contrast{--bg:#000; --card:#0a0a0a; --card2:#151515; --border:#ffffff; --border-strong:#ffffff; --text:#ffffff; --muted:#f2f2f2; --accent:#ffd400; --on-accent:#000000; --grid:#cfcfcf; --axis:#ffffff; --ref:#e0e0e0; --temp:#ffd400; --temp26:#ff8a80; --clim:#9ec5ff; --dec:#e0b3ff; --dec26:#7dffb0}
+  html.a11y-contrast .chip.canicule{color:#ff8a80; border-color:#ff8a80}
+  html.a11y-contrast .chip.froid{color:#9ec5ff; border-color:#9ec5ff}
+  html.a11y-contrast .chip.canicule.on{background:#ff8a80; color:#000}
+  html.a11y-contrast .chip.froid.on{background:#9ec5ff; color:#000}
+  html.a11y-contrast .a11y-fab{border-color:#000}
+  html.a11y-contrast .logo{color:#000}
+  html.a11y-contrast .a11y-close{color:#f2f2f2}
+  html.a11y-big body{zoom:1.15}
+  html.a11y-gray main, html.a11y-gray header, html.a11y-gray .stats{filter:grayscale(1)}
+  html.a11y-noanim *, html.a11y-noanim *::before, html.a11y-noanim *::after{animation-duration:.001ms!important; animation-iteration-count:1!important; transition-duration:.001ms!important; scroll-behavior:auto!important}
+  @media (prefers-reduced-motion: reduce){*{animation-duration:.001ms!important; transition-duration:.001ms!important}}
+
+  /* équivalent tabulaire des graphiques */
+  .datatable{margin-top:8px}
+  .datatable summary{cursor:pointer; color:var(--accent); font-size:13px; padding:6px 0}
+  .datatable table{width:100%; border-collapse:collapse; font-size:12px; margin-top:8px}
+  .datatable caption{text-align:left; color:var(--muted); font-size:11px; padding-bottom:6px}
+  .datatable th, .datatable td{border:1px solid var(--border); padding:5px 8px; text-align:right; white-space:nowrap}
+  .datatable th{background:var(--card2); color:var(--text); font-weight:600}
+  .datatable th[scope="row"]{text-align:left}
+  .datatable td{color:var(--text)}
+  .datatable tbody tr:nth-child(even) td{background:var(--card2)}
+  .datatable .scroll{max-height:320px; overflow:auto}
 </style>
 </head>
 <body>
+<a class="skip" href="#contenu">Aller au contenu principal</a>
 <div id="app" v-cloak>
   <header>
-    <div class="logo">🌡</div>
+    <div class="logo" aria-hidden="true">🌡</div>
     <div>
-      <h1>Décès & Températures en France</h1>
+      <h1>Décès &amp; Températures en France</h1>
       <div class="sub">Indicateur Thermique National (Infoclimat) × données décès INSEE — 1970-2026</div>
     </div>
   </header>
 
+  <main id="contenu" tabindex="-1">
   <!-- statistiques -->
   <div class="stats">
     <div class="stat"><div class="k">Temp. moy. 1970-2025</div><div class="v">{{ fmt1(tempMoyenneGlobale) }}<small> °C</small></div></div>
@@ -66,37 +121,110 @@
   </div>
 
   <!-- 1. température -->
-  <div class="panel">
-    <h2>Température moyenne quotidienne en France</h2>
+  <section class="panel" aria-labelledby="t-temp">
+    <h2 id="t-temp">Température moyenne quotidienne en France</h2>
     <div class="desc">Sélectionnez une ou plusieurs années à superposer à la climatologie (moyenne du même jour, 1970-2025).</div>
     <div class="chips">
-      <span v-for="y in anneesDispo" :key="y" class="chip" :class="{on: anneeActive(y)}" @click="toggleAnnee(y)">{{ y }}</span>
+      <button type="button" v-for="y in anneesDispo" :key="y" class="chip" :class="[anneeClass(y), {on: anneeActive(y)}]" :aria-pressed="anneeActive(y)" @click="toggleAnnee(y)">{{ y }}<span v-if="anneeSym(y)" aria-hidden="true"> {{ anneeSym(y) }}</span><span v-if="anneeType(y)" class="vh">, {{ anneeType(y) }}</span></button>
     </div>
-    <div class="chartbox"><canvas ref="chartTemp"></canvas></div>
+    <p class="legend"><span>★ année canicule</span><span>❄ année froide</span><span>sans marqueur : année ordinaire</span></p>
+    <div class="chartbox"><canvas ref="chartTemp" role="img" :aria-label="ariaTemp">Graphique en courbes : température moyenne quotidienne en France, climatologie 1970-2025 superposée aux années sélectionnées.</canvas></div>
+    <details class="datatable">
+      <summary>Afficher les valeurs de température dans un tableau</summary>
+      <div class="scroll">
+        <table>
+          <caption>Température moyenne journalière en France : moyenne, minimum et maximum par période (°C)</caption>
+          <thead>
+            <tr><th scope="col">Période</th><th scope="col">Moyenne (°C)</th><th scope="col">Minimum (°C)</th><th scope="col">Maximum (°C)</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in tableTemp" :key="r.label">
+              <th scope="row">{{ r.label }}</th>
+              <td>{{ fmt1(r.moy) }}</td><td>{{ fmt1(r.min) }}</td><td>{{ fmt1(r.max) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
     <div class="note">Climatologie = moyenne 1970-2025 de chaque jour de l'année. Années bissextiles : 29/02 inclus (jours sans données ignorés).</div>
-  </div>
+  </section>
 
   <!-- 2. corrélation -->
-  <div class="panel">
-    <h2>Température × Décès</h2>
-    <div class="desc">Comparaison jour par jour (axe gauche : température, axe droit : décès). Sélectionnez les années de température, la période et le périmètre des décès.</div>
-    <div class="chips">
-      <span class="chip" :class="{on: decesSrc==='fr'}" @click="setDecesSrc('fr')">France</span>
-      <span class="chip" :class="{on: decesSrc==='mel'}" @click="setDecesSrc('mel')">MEL (Lille)</span>
+  <section class="panel" aria-labelledby="t-corr">
+    <h2 id="t-corr">Température × Décès</h2>
+    <div class="desc">Comparaison jour par jour (axe gauche : température, axe droit : décès). Décès affichés en données brutes, par année, indexés sur la population 2025 — aucun lissage. Sélectionnez les années de température et de décès, puis la période.</div>
+    <div class="chips" role="group" aria-label="Périmètre des décès">
+      <button type="button" class="chip" :class="{on: decesSrc==='fr'}" :aria-pressed="decesSrc==='fr'" @click="setDecesSrc('fr')">France</button>
+      <button type="button" class="chip" :class="{on: decesSrc==='mel'}" :aria-pressed="decesSrc==='mel'" @click="setDecesSrc('mel')">MEL (Lille)</button>
     </div>
-    <div class="chips">
-      <span v-for="y in anneesDispo" :key="y" class="chip" :class="{on: anneeCorrActive(y)}" @click="toggleAnneeCorr(y)">{{ y }}</span>
+    <div class="chips" role="group" aria-label="Années affichées (température et décès bruts)">
+      <button type="button" v-for="y in anneesDispo" :key="y" class="chip" :class="[anneeClass(y), {on: anneeCorrActive(y)}]" :aria-pressed="anneeCorrActive(y)" @click="toggleAnneeCorr(y)">{{ y }}<span v-if="anneeSym(y)" aria-hidden="true"> {{ anneeSym(y) }}</span><span v-if="anneeType(y)" class="vh">, {{ anneeType(y) }}</span></button>
     </div>
-    <div class="chips">
-      <span class="chip" :class="{on: corrPeriode==='annee'}" @click="corrPeriode='annee'">Année complète</span>
-      <span class="chip" :class="{on: corrPeriode==='ete'}" @click="corrPeriode='ete'">Été (15/05–15/09)</span>
+    <div class="chips" role="group" aria-label="Période affichée">
+      <button type="button" class="chip" :class="{on: corrPeriode==='annee'}" :aria-pressed="corrPeriode==='annee'" @click="corrPeriode='annee'">Année complète</button>
+      <button type="button" class="chip" :class="{on: corrPeriode==='ete'}" :aria-pressed="corrPeriode==='ete'" @click="corrPeriode='ete'">Été (15/05–15/09)</button>
     </div>
-    <div class="chartbox"><canvas ref="chartCorr"></canvas></div>
-    <div class="note">Décès : moyenne indexée 1970-2025 + 2026 (France ou MEL selon sélection). Température : années sélectionnées. Le tracé 2026 s'arrête à la dernière date disponible.</div>
-  </div>
+    <p class="legend"><span>★ année canicule</span><span>❄ année froide</span><span>sans marqueur : année ordinaire</span></p>
+    <div class="chartbox"><canvas ref="chartCorr" role="img" :aria-label="ariaCorr">Graphique en courbes : température (axe gauche, en °C) et décès par jour (axe droit) pour les années sélectionnées.</canvas></div>
+    <details class="datatable">
+      <summary>Afficher les valeurs du graphique dans un tableau</summary>
+      <div class="scroll">
+        <table>
+          <caption>Température × Décès : statistiques de la période affichée</caption>
+          <thead>
+            <tr><th scope="col">Série</th><th scope="col">Unité</th><th scope="col">Moyenne</th><th scope="col">Minimum</th><th scope="col">Maximum</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in tableCorr" :key="r.label">
+              <th scope="row">{{ r.label }}</th>
+              <td>{{ r.unite }}</td>
+              <td>{{ fmt1(r.moy) }}</td><td>{{ fmt1(r.min) }}</td><td>{{ fmt1(r.max) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+    <div class="note">Décès : données brutes par année, indexées sur la population 2025 — aucune moyenne, aucun lissage. La courbe 2026 (vert) affiche les décès réels enregistrés, sans projection : elle s'arrête au dernier jour disponible. Température : climatologie 1970-2025 + années sélectionnées.</div>
+  </section>
+  </main>
 
-  <div class="note" style="text-align:center; margin-top:8px">
-    Données : Infoclimat, 1970-2026 · Fichier des personnes décédées (INSEE)
+  <footer>
+    <div class="note" style="text-align:center; margin-top:8px">
+      Données : <a href="https://www.infoclimat.fr/climato/indicateur_national.php#2026;,1981-2010,0,-3.65,368.65,,y,desc,-1292739192000,1816056792000" target="_blank" rel="noopener">Infoclimat<span class="vh"> (nouvel onglet)</span></a>, 1970-2026 · Fichier des personnes décédées (INSEE)
+    </div>
+  </footer>
+
+  <!-- message de statut (RGAA 7.5) -->
+  <div class="vh" role="status" id="a11y-statut">{{ a11yMsg }}</div>
+
+  <!-- bouton accessibilité -->
+  <button type="button" class="a11y-fab" id="a11y-bouton" ref="a11yBouton"
+          :aria-expanded="panneauOuvert" aria-controls="a11y-panneau" @click="basculerPanneau">
+    <span aria-hidden="true">♿</span><span class="vh">Options d’accessibilité</span>
+  </button>
+
+  <div class="a11y-panel" id="a11y-panneau" role="group" aria-labelledby="a11y-titre"
+       v-show="panneauOuvert" @keydown.esc="fermerPanneau">
+    <h2 id="a11y-titre">Options d’accessibilité</h2>
+    <button type="button" class="a11y-close" @click="fermerPanneau"><span aria-hidden="true">✕</span><span class="vh">Fermer les options d’accessibilité</span></button>
+    <p class="hint">Ces réglages sont conservés dans ce navigateur.</p>
+    <label class="a11y-opt" for="a11y-contraste">
+      <span class="lbl"><span class="ico" aria-hidden="true">◑</span> Contraste élevé</span>
+      <input type="checkbox" class="switch" id="a11y-contraste" ref="premierReglage" :checked="a11y.contraste" @change="modifA11y('contraste','Contraste élevé',$event)">
+    </label>
+    <label class="a11y-opt" for="a11y-taille">
+      <span class="lbl"><span class="ico" aria-hidden="true">A+</span> Texte agrandi</span>
+      <input type="checkbox" class="switch" id="a11y-taille" :checked="a11y.taille" @change="modifA11y('taille','Texte agrandi',$event)">
+    </label>
+    <label class="a11y-opt" for="a11y-anim">
+      <span class="lbl"><span class="ico" aria-hidden="true">⏸</span> Animations réduites</span>
+      <input type="checkbox" class="switch" id="a11y-anim" :checked="a11y.anim" @change="modifA11y('anim','Animations réduites',$event)">
+    </label>
+    <label class="a11y-opt" for="a11y-gris">
+      <span class="lbl"><span class="ico" aria-hidden="true">◐</span> Nuances de gris</span>
+      <input type="checkbox" class="switch" id="a11y-gris" :checked="a11y.gris" @change="modifA11y('gris','Nuances de gris',$event)">
+    </label>
+    <button type="button" class="a11y-reset" @click="reinitA11y">Réinitialiser les options</button>
   </div>
 </div>
 
@@ -118,6 +246,15 @@ const temp = DATA.temp;
 const N = temp.tmoy.length;
 const decesFR = DATA.decesFR || DATA.deces;
 const decesMEL = DATA.decesMEL || DATA.deces;
+const decesBrutFR = DATA.decesBrutFR || null;
+const decesBrutMEL = DATA.decesBrutMEL || null;
+
+const CANICULE = new Set([1976,1983,1994,2003,2006,2012,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025,2026]);
+const FROID = new Set([1978,1979,1984,1985,1996,1997,2008,2009]);
+const anneeClass = y => CANICULE.has(y) ? 'canicule' : FROID.has(y) ? 'froid' : '';
+const anneeSym = y => CANICULE.has(y) ? '★' : FROID.has(y) ? '❄' : '';
+const anneeType = y => CANICULE.has(y) ? 'année canicule' : FROID.has(y) ? 'année froide' : '';
+
 // jour partagé (identique FR/MEL)
 const mmddList = decesFR.jour; // 366 jours (0101..1231)
 const mmddIdx = {};
@@ -159,12 +296,71 @@ const app = createApp({
   setup(){
     const chartTemp = ref(null), chartCorr = ref(null);
     const anneesSel = ref([2026]);
-    const anneesCorr = ref([2026]);
+    const anneesCorr = ref([2023, 2024, 2025, 2026]);
     const corrPeriode = ref('annee');
     const decesSrc = ref('mel');   // 'fr' | 'mel'  — filtre décès MEL
-    const charts = {};
+    const charts = new Map();
+
+    // ---- options d'accessibilité (RGAA 7.1 / 7.5) ----
+    const a11yBouton = ref(null), premierReglage = ref(null);
+    const panneauOuvert = ref(false);
+    const a11yMsg = ref('');
+    const CLE_A11Y = 'reglages-a11y-v1';
+    const a11y = Vue.reactive({ contraste:false, taille:false, anim:false, gris:false });
+    try{
+      const sauve = JSON.parse(localStorage.getItem(CLE_A11Y) || 'null');
+      if(sauve){
+        a11y.contraste = !!sauve.contraste; a11y.taille = !!sauve.taille;
+        a11y.anim = !!sauve.anim; a11y.gris = !!sauve.gris;
+      } else if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches){
+        a11y.anim = true;
+      }
+    }catch(e){}
+
+    function appliquerA11y(){
+      const h = document.documentElement;
+      h.classList.toggle('a11y-contrast', a11y.contraste);
+      h.classList.toggle('a11y-big', a11y.taille);
+      h.classList.toggle('a11y-noanim', a11y.anim);
+      h.classList.toggle('a11y-gray', a11y.gris);
+      try{ localStorage.setItem(CLE_A11Y, JSON.stringify(a11y)); }catch(e){}
+    }
+    appliquerA11y();
+
+    const basculerPanneau = () => {
+      panneauOuvert.value = !panneauOuvert.value;
+      Vue.nextTick(()=>{
+        if(panneauOuvert.value){ if(premierReglage.value) premierReglage.value.focus(); }
+        else if(a11yBouton.value){ a11yBouton.value.focus(); }
+      });
+    };
+    const fermerPanneau = () => {
+      if(!panneauOuvert.value) return;
+      panneauOuvert.value = false;
+      Vue.nextTick(()=>{ if(a11yBouton.value) a11yBouton.value.focus(); });
+    };
+    const modifA11y = (cle, nom, e) => {
+      a11y[cle] = e.target.checked;
+      appliquerA11y();
+      a11yMsg.value = nom + (a11y[cle] ? ' activé' : ' désactivé');
+      redessiner();
+    };
+    const reinitA11y = () => {
+      a11y.contraste = false; a11y.taille = false; a11y.anim = false; a11y.gris = false;
+      appliquerA11y();
+      a11yMsg.value = 'Options d’accessibilité réinitialisées';
+      redessiner();
+    };
+    function redessiner(){ if(chartTemp.value) drawTemp(); if(chartCorr.value) drawCorr(); }
 
     const deces = Vue.computed(() => decesSrc.value === 'mel' ? decesMEL : decesFR);
+    const decesBrut = Vue.computed(() => decesSrc.value === 'mel' ? decesBrutMEL : decesBrutFR);
+
+    // années de décès bruts réellement disponibles dans le périmètre sélectionné
+    const anneesBrutDispo = Vue.computed(() => {
+      const d = decesBrut.value;
+      return d ? new Set(d.annees.map(Number)) : new Set();
+    });
 
     // jours MMDD de la période "été" (15/05 -> 15/09)
     const eteMmdd = mmddList.filter(m => m >= '0515' && m <= '0909');
@@ -182,10 +378,10 @@ const app = createApp({
       const v = Object.values(a);
       return v.length ? v.reduce((s,x)=>s+x,0)/v.length : null;
     });
-    const deces2026Cumul = computed(() => deces.value.deces_2026.reduce((s,x)=>s+x,0));
+    const deces2026Cumul = computed(() => deces.value.deces_2026.reduce((s,x)=>s+(x||0),0));
     const moyenneDecesIndicee = computed(() => {
       const d = deces.value;
-      return d.moyenne_indexee.reduce((s,x)=>s+x,0)/d.moyenne_indexee.length;
+      return Math.round(d.moyenne_indexee.reduce((s,x)=>s+x,0)/d.moyenne_indexee.length);
     });
 
     const anneeActive = y => anneesSel.value.includes(y);
@@ -206,43 +402,63 @@ const app = createApp({
     }
 
     function makeChart(canvas, cfg){
-      if(charts[canvas]) charts[canvas].destroy();
-      charts[canvas] = new Chart(canvas.getContext('2d'), cfg);
+      if(charts.has(canvas)) charts.get(canvas).destroy();
+      charts.set(canvas, new Chart(canvas.getContext('2d'), cfg));
     }
 
     // couleurs par année (palette fixe)
     const palette = ['#ff6b5e','#4ade80','#4f9cf9','#f6a53c','#b48bf0','#22d3ee','#fb7185','#a3e635','#f97316','#e879f9','#34d399','#60a5fa','#facc15','#c084fc','#2dd4bf'];
     const anneeColor = y => {
-      const i = anneesDispo.indexOf(Number(y));
+      let i = anneesDispo.indexOf(Number(y));
+      if(i < 0) i = Number(y) - 1970;
       return palette[i % palette.length];
     };
 
-    const tick = { color:'#22304e' };
-    const grid = { color:'#22304e', drawOnChartArea:true };
-    const baseOpts = {
-      responsive:true, maintainAspectRatio:false,
-      interaction:{ mode:'index', intersect:false },
-      plugins:{ legend:{ labels:{ color:'#8a94ab', boxWidth:12, font:{size:11} } },
-                tooltip:{ backgroundColor:'#0f1420', borderColor:'#2a3552', borderWidth:1,
-                          titleCallback: (items) => { const l=items[0].label; return l.slice(2)+'/'+l.slice(0,2); },
-                          callbacks:{ label: c => ' '+c.dataset.label+': '+ (c.parsed.y===null?'–':Number(c.parsed.y).toFixed(1)) } } },
-      scales:{
-        x:{ ticks:{ color:'#8a94ab', font:{size:9}, maxTicksLimit:26, callback(v){ const l=this.getLabelForValue(v); return l.slice(2)+'/'+l.slice(0,2); } },
-            grid:{display:false} },
-        y:{ ticks: tick, grid }
-      }
-    };
+    // couleurs lues dans le thème CSS (mode contraste élevé inclus)
+    const cssVar = n => (getComputedStyle(document.documentElement).getPropertyValue(n) || '').trim();
+    function themeChart(){
+      return {
+        axis: cssVar('--axis') || '#8a94ab',
+        grid: cssVar('--grid') || '#5a6e99',
+        bg:   cssVar('--bg')   || '#0f1420',
+        bord: cssVar('--border-strong') || '#7388b0',
+        mut:  cssVar('--muted') || '#8a94ab',
+        txt:  cssVar('--text')  || '#e8ecf5',
+        ref:  cssVar('--ref')   || '#6b7694'
+      };
+    }
+
+    function optsBase(){
+      const t = themeChart();
+      return {
+        responsive:true, maintainAspectRatio:false,
+        animation: a11y.anim ? false : true,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{ legend:{ labels:{ color:t.mut, boxWidth:12, font:{size:11} } },
+                  tooltip:{ backgroundColor:t.bg, borderColor:t.bord, borderWidth:1, titleColor:t.txt, bodyColor:t.txt,
+                            titleCallback: (items) => { const l=items[0].label; return l.slice(2)+'/'+l.slice(0,2); },
+                            callbacks:{ label: c => ' '+c.dataset.label+': '+ (c.parsed.y===null?'–':Number(c.parsed.y).toFixed(1)) } } },
+        scales:{
+          x:{ ticks:{ color:t.axis, font:{size:9}, maxTicksLimit:26, callback(v){ const l=this.getLabelForValue(v); return l.slice(2)+'/'+l.slice(0,2); } },
+              grid:{display:false} },
+          y:{ ticks:{ color:t.axis }, grid:{ color:t.grid, drawOnChartArea:true } }
+        }
+      };
+    }
 
     function drawTemp(){
+      const base = optsBase();
       const datasets = [{ label:'Climatologie 1970-2025', data:tempClim, borderColor:'#7fb0ff', backgroundColor:'#7fb0ff22', borderWidth:2, pointRadius:0, fill:false }];
       anneesSel.value.forEach(y=>{
         datasets.push({ label:'Année '+y, data:serieAnnee(y), borderColor:anneeColor(y), borderWidth:1.6, pointRadius:0, spanGaps:false });
       });
       makeChart(chartTemp.value, { type:'line', data:{ labels:mmddList, datasets },
-        options:{ ...baseOpts, elements:{ line:{tension:.15} } } });
+        options:{ ...base, elements:{ line:{tension:.15} } } });
     }
 
     function drawCorr(){
+      const t = themeChart();
+      const base = optsBase();
       const lab = corrPeriode.value === 'ete' ? eteMmdd : mmddList;
       const idx = lab.map(m => mmddIdx[m]);
       const pick = arr => idx.map(i => arr[i]);
@@ -253,17 +469,86 @@ const app = createApp({
       anneesCorr.value.forEach(y=>{
         datasets.push({ label:'Temp. '+y, data:pick(serieAnnee(y)), borderColor:anneeColor(y), borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y', spanGaps:false });
       });
-      // décès : moyenne indexée + 2026 (source FR / MEL)
-      datasets.push({ label:'Décès moy. indexée', data:pick(deces.value.moyenne_indexee), borderColor:'#b48bf0', borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y1', spanGaps:true });
-      datasets.push({ label:'Décès 2026', data:pick(deces.value.deces_2026), borderColor:'#4ade80', borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y1', spanGaps:false });
+
+      // décès : données brutes par année (indexées population 2025), aucun lissage
+      const db = decesBrut.value;
+      if(db){
+        const dispo = anneesBrutDispo.value;
+        anneesCorr.value.filter(y => dispo.has(y)).forEach(y=>{
+          const a = String(y);
+          const series = mmddList.map(m => (db.indexes[a] && db.indexes[a][m] != null) ? db.indexes[a][m] : null);
+          datasets.push({ label:'Décès '+y+' (brut, ind.)', data:pick(series), borderColor:anneeColor(y), borderWidth:1.6, pointRadius:0, fill:false, tension:.15, yAxisID:'y1', spanGaps:false });
+        });
+      }
+      // 2026 : décès réels (aucune projection)
+      datasets.push({ label:'Décès 2026 (réel)', data:pick(deces.value.deces_2026), borderColor:'#4ade80', borderWidth:1.8, pointRadius:0, fill:false, tension:.15, yAxisID:'y1', spanGaps:false });
+
       makeChart(chartCorr.value, { type:'line',
         data:{ labels:lab, datasets },
-        options:{ ...baseOpts,
-          scales:{ x:baseOpts.scales.x,
-            y:{ position:'left', ticks:{ color:'#8a94ab' }, grid, title:{display:true, text:'°C', color:'#8a94ab', font:{size:10}} },
-            y1:{ position:'right', ticks:{ color:'#8a94ab' }, grid:{drawOnChartArea:false}, title:{display:true, text:'décès/jour', color:'#8a94ab', font:{size:10}} } } }
+        options:{ ...base,
+          scales:{ x:base.scales.x,
+            y:{ position:'left', ticks:{ color:t.axis }, grid:{ color:t.grid, drawOnChartArea:true }, title:{display:true, text:'°C', color:t.axis, font:{size:10}} },
+            y1:{ position:'right', ticks:{ color:t.axis }, grid:{drawOnChartArea:false}, title:{display:true, text:'décès/jour', color:t.axis, font:{size:10}} } } }
       });
     }
+
+    // ---- équivalents tabulaires des graphiques (RGAA 1.1 / 1.6) ----
+    function stats(arr){
+      const v = arr.filter(x => x !== null && x !== undefined && !Number.isNaN(x));
+      if(!v.length) return { moy:null, min:null, max:null };
+      return { moy: v.reduce((s,x)=>s+x,0)/v.length, min: Math.min.apply(null,v), max: Math.max.apply(null,v) };
+    }
+    const tableTemp = computed(()=>{
+      const rows = [{ label:'Climatologie 1970-2025', moy:null, min:null, max:null }];
+      const s0 = stats(tempClim);
+      rows[0].moy = s0.moy; rows[0].min = s0.min; rows[0].max = s0.max;
+      anneesDispo.forEach(y=>{
+        const s = stats(Object.values(tempByYear[y]));
+        rows.push({ label:'Année '+y, moy:s.moy, min:s.min, max:s.max });
+      });
+      return rows;
+    });
+    const tableCorr = computed(()=>{
+      const lab = corrPeriode.value === 'ete' ? eteMmdd : mmddList;
+      const idx = lab.map(m => mmddIdx[m]);
+      const rows = [];
+      const add = (label, unite, arr) => {
+        const s = stats(idx.map(i => arr[i]));
+        if(s.moy === null) return;
+        rows.push({ label, unite, moy:s.moy, min:s.min, max:s.max });
+      };
+      add('Climatologie température 1970-2025', '°C', tempClim);
+      anneesCorr.value.forEach(y => add('Température '+y, '°C', serieAnnee(y)));
+      const db = decesBrut.value;
+      if(db){
+        const dispo = anneesBrutDispo.value;
+        anneesCorr.value.filter(y => dispo.has(y)).forEach(y=>{
+          const a = String(y);
+          add('Décès '+y+' (brut, indice population)', 'décès/jour',
+              mmddList.map(m => (db.indexes[a] && db.indexes[a][m] != null) ? db.indexes[a][m] : null));
+        });
+      }
+      add('Décès 2026 (réel)', 'décès/jour', deces.value.deces_2026);
+      return rows;
+    });
+
+    const ariaTemp = computed(()=>{
+      const sel = anneesSel.value.slice().sort((a,b)=>a-b);
+      return 'Courbes de température moyenne quotidienne en France. ' +
+        (sel.length ? 'Années affichées : '+sel.join(', ')+'. ' : 'Seule la climatologie 1970-2025 est affichée. ') +
+        'Le détail des valeurs est donné dans le tableau placé sous le graphique.';
+    });
+    const ariaCorr = computed(()=>{
+      const sel = anneesCorr.value.slice().sort((a,b)=>a-b);
+      const dispo = anneesBrutDispo.value;
+      const selB = sel.filter(y => dispo.has(y));
+      return 'Courbes comparant la température en degrés Celsius (axe de gauche) et le nombre de décès par jour en données brutes, sans lissage (axe de droit). ' +
+        'Période : '+(corrPeriode.value === 'ete' ? 'été, du 15 mai au 15 septembre' : 'année complète')+'. ' +
+        'Périmètre des décès : '+(decesSrc.value === 'mel' ? 'Métropole Européenne de Lille' : 'France')+'. ' +
+        'Années affichées : '+(sel.length ? sel.join(', ') : 'aucune')+'. ' +
+        'Années de décès bruts affichées : '+(selB.length ? selB.join(', ') : 'aucune')+', plus les décès réels de 2026. ' +
+        'Le détail des valeurs est donné dans le tableau placé sous le graphique.';
+    });
 
     onMounted(()=>{ drawTemp(); drawCorr(); });
     watch(anneesSel, drawTemp, {deep:true});
@@ -274,7 +559,10 @@ const app = createApp({
     return { chartTemp, chartCorr, anneesDispo, anneesSel, anneesCorr, corrPeriode, decesSrc,
              anneeActive, toggleAnnee, anneeCorrActive, toggleAnneeCorr, setDecesSrc, fmt1, fmt0,
              tempMoyenneGlobale, tempMoyenne2026, anneePlusChaude, jourPlusChaud:jpc,
-             deces2026Cumul, moyenneDecesIndicee };
+             deces2026Cumul, moyenneDecesIndicee,
+             anneeSym, anneeType, anneeClass, tableTemp, tableCorr, ariaTemp, ariaCorr,
+             a11y, a11yMsg, a11yBouton, premierReglage, panneauOuvert,
+             basculerPanneau, fermerPanneau, modifA11y, reinitA11y };
   }
 });
 app.mount('#app');
